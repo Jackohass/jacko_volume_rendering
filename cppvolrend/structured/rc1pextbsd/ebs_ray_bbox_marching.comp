@@ -62,11 +62,11 @@ layout (rgba16f, binding = 0) uniform image2D OutputFrag;
 
 // we added a border to handle with boundary errors
 // . SAT Size = VolumeDimensions * VolumeScales + 2 * VolumeScales
-const vec3 MinSATPosition = VolumeScales * 0.5;
-const vec3 MaxSATPosition = VolumeScaledSizes + VolumeScales * 1.5;
+vec3 MinSATPosition = VolumeScales * 0.5;
+vec3 MaxSATPosition = VolumeScaledSizes + VolumeScales * 1.5;
 
-const vec3 MinVolPosition = VolumeScales * 0.5;
-const vec3 MaxVolPosition = VolumeScaledSizes - VolumeScales * 0.5;
+vec3 MinVolPosition = VolumeScales * 0.5;
+vec3 MaxVolPosition = VolumeScaledSizes - VolumeScales * 0.5;
 ivec2 storePosGlobal;
 
 //#define USE_TEXEL_FETCH

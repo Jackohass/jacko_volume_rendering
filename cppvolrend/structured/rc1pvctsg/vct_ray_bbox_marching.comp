@@ -94,7 +94,7 @@ bool RayAABBIntersection (vec3 vert_eye, vec3 vert_dir, out Ray r, out float rtn
   return hit;
 }
 
-const float corr_fact = ApplyOpacityCorrectionFactor * OpacityCorrectionFactor; 
+float corr_fact = ApplyOpacityCorrectionFactor * OpacityCorrectionFactor; 
 float EvaluationVoxelConeTracing (vec3 tex_pos)
 {
   float Tvd = 1.0;
