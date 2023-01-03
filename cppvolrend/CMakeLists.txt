@@ -64,7 +64,7 @@ add_executable(cppvolrend
                ${CMAKE_EXTERNAL_DIRECTORY}/imgui/examples/imgui_impl_opengl2.h ${CMAKE_EXTERNAL_DIRECTORY}/imgui/examples/imgui_impl_opengl2.cpp
                ${CMAKE_EXTERNAL_DIRECTORY}/imgui/examples/imgui_impl_glfw.h    ${CMAKE_EXTERNAL_DIRECTORY}/imgui/examples/imgui_impl_glfw.cpp
                ${CMAKE_EXTERNAL_DIRECTORY}/imgui/examples/imgui_impl_opengl3.h ${CMAKE_EXTERNAL_DIRECTORY}/imgui/examples/imgui_impl_opengl3.cpp
-               )
+                "structured/rcMine/rcMineRenderer.h" "structured/rcMine/rcMineRenderer.cpp")
 
 find_package(OpenGL REQUIRED)
 link_directories(${OPENGL_gl_LIBRARY})

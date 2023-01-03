@@ -27,6 +27,9 @@
 #include "structured/rc1pvctsg/vctrenderer.h"
 // Slice based
 #include "structured/sbtmdos/sbtmdosrenderer.h"
+// Mine
+#include "structured/rcMine/rcMineRenderer.h"
+
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #ifdef USING_FREEGLUT
@@ -64,6 +67,9 @@ int main (int argc, char **argv)
   //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
   // Slice based
   RenderingManager::Instance()->AddVolumeRenderer(new SBTMDirectionalOcclusionShading());
+  //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  // Mine - Ray Casting - GLSL
+  RenderingManager::Instance()->AddVolumeRenderer(new RayCastingMine());
   //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
   app.InitImGui();
