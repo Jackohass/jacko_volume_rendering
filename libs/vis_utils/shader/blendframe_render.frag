@@ -2,6 +2,8 @@
 
 layout (location = 0) out vec4 FragColor;
 
+layout (depth_unchanged) out float gl_FragDepth;
+
 in vec2 color;
 
 uniform sampler2D TexGeneratedFrame;
@@ -13,4 +15,5 @@ void main (void)
   //frag_color.rgb = pow(frag_color.rgb, vec3(1.0/gamma));
 
   FragColor = frag_color;
+  //FragColor = vec4(vec3(0.2), 1.0);
 }

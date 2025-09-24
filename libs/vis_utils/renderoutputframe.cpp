@@ -35,6 +35,7 @@ RenderFrameToScreen::RenderFrameToScreen(std::string shader_folder)
   , m_cb_vao(nullptr)
   , m_cb_vbo(nullptr)
   , m_cb_ibo(nullptr)
+  , updateScreenRes(true)
 {
 }
 
@@ -63,21 +64,40 @@ void RenderFrameToScreen::Clean ()
 
 void RenderFrameToScreen::UpdateScreenResolution (int s_w, int s_h)
 {
+    updateScreenRes = true;
   if (m_screen_output == nullptr)
   {
     m_screen_output = new gl::Texture2D(s_w, s_h);
     m_screen_output->GenerateTexture(GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
     m_screen_output->SetData(NULL, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+
+    colourData = new gl::Texture2D(s_w, s_h);
+    colourData->GenerateTexture(GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+    colourData->SetData(NULL, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+
+    dataData = new gl::Texture2D(s_w, s_h);
+    dataData->GenerateTexture(GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+    dataData->SetData(NULL, GL_RGBA32F, GL_RGBA, GL_FLOAT);
   }
   else
   {
     if (m_screen_output->GetWidth() != s_w || m_screen_output->GetHeight() != s_h)
     {
       delete m_screen_output;
+      delete colourData;
+      delete dataData;
 
       m_screen_output = new gl::Texture2D(s_w, s_h);
       m_screen_output->GenerateTexture(GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
       m_screen_output->SetData(NULL, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+
+      colourData = new gl::Texture2D(s_w, s_h);
+      colourData->GenerateTexture(GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+      colourData->SetData(NULL, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+
+      dataData = new gl::Texture2D(s_w, s_h);
+      dataData->GenerateTexture(GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+      dataData->SetData(NULL, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 
       if (m_filtered_screen_output) delete m_filtered_screen_output;
       m_filtered_screen_output = nullptr;
@@ -184,6 +204,13 @@ void RenderFrameToScreen::ClearTextures ()
   m_filtered_screen_output = nullptr;
 }
 
+void RenderFrameToScreen::ClearMultiTexture()
+{
+    glClearTexImage(colourData->GetTextureID(), 0, GL_RGBA, GL_FLOAT, 0);
+    glClearTexImage(dataData->GetTextureID(), 0, GL_RGBA, GL_FLOAT, 0);
+    glClearTexImage(m_screen_output->GetTextureID(), 0, GL_RGBA, GL_FLOAT, 0);
+}
+
 void RenderFrameToScreen::ClearTexture ()
 {
   glClearTexImage(m_screen_output->GetTextureID(), 0, GL_RGBA, GL_FLOAT, 0);
@@ -220,6 +247,7 @@ void RenderFrameToScreen::Draw (GLuint screen_output_id)
 
     m_ps_shader->AddShaderFile(gl::PipelineShader::TYPE::VERTEX, vis::Utils::GetShaderPath() + "blendframe_render.vert");
     m_ps_shader->AddShaderFile(gl::PipelineShader::TYPE::FRAGMENT, vis::Utils::GetShaderPath() + "blendframe_render.frag");
+    
     m_ps_shader->LoadAndLink();
     m_ps_shader->Bind();
     gl::ExitOnGLError("vis::RenderFrameToScreen: Could not create pipeline blend shader...");
@@ -246,7 +274,9 @@ void RenderFrameToScreen::Draw (GLuint screen_output_id)
   m_cb_vao->Bind();
   m_cb_vbo->Bind();
   m_cb_ibo->Bind();
+
   m_cb_vao->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT);
+
   m_cb_ibo->Unbind();
   m_cb_vbo->Unbind();
   gl::ArrayObject::Unbind();
@@ -256,6 +286,180 @@ void RenderFrameToScreen::Draw (GLuint screen_output_id)
 
   glBindTexture(GL_TEXTURE_2D, 0);
 }
+
+void RenderFrameToScreen::createSecondPass()
+{
+    depth_shader = new gl::PipelineShader();
+
+    depth_shader->AddShaderFile(gl::PipelineShader::TYPE::VERTEX, vis::Utils::GetShaderPath() + "blendframe_render.vert");
+    depth_shader->AddShaderFile(gl::PipelineShader::TYPE::FRAGMENT, vis::Utils::GetShaderPath() + "Mine_depth.frag");
+    depth_shader->LoadAndLink();
+    depth_shader->Bind();
+    gl::ExitOnGLError("vis::RenderFrameToScreen: Could not create pipeline blend shader...");
+
+    glm::mat4 projMat = glm::ortho<float>(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f);
+    depth_shader->SetUniform("ProjectionMatrix", projMat);
+    depth_shader->BindUniform("ProjectionMatrix");
+    gl::ExitOnGLError("vis::RenderFrameToScreen: Could not bind uniforms...");
+
+    depth_shader->Unbind();
+    gl::ExitOnGLError("vis::RenderFrameToScreen: Could not unbind pipeline shader...");
+}
+
+void RenderFrameToScreen::DrawOnePass(GLuint screen_output_id, gl::PipelineShader* render_shader)
+{
+    if (depth_shader == nullptr)
+    {
+        createSecondPass();
+        CreateVertexBuffers();
+    }
+    
+    depth_shader->Bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, screen_output_id);
+
+    m_cb_vao->Bind();
+    m_cb_vbo->Bind();
+    m_cb_ibo->Bind();
+
+    depth_shader->SetUniformTexture2D("TexGeneratedFrame", screen_output_id, 0);
+    depth_shader->BindUniform("TexGeneratedFrame");
+    m_cb_vao->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT);
+
+    gl::PipelineShader::Unbind();
+
+    render_shader->Bind();
+
+    render_shader->SetUniformTexture2D("TexGeneratedFrame", screen_output_id, 0);
+    render_shader->BindUniform("TexGeneratedFrame");
+    m_cb_vao->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT);
+    gl::ExitOnGLError("Renderoutput: After Render frag.");
+
+    m_cb_ibo->Unbind();
+    m_cb_vbo->Unbind();
+    gl::ArrayObject::Unbind();
+
+    gl::ExitOnGLError("vis::RenderFrameToScreen: Could not get shader uniform locations");
+    gl::PipelineShader::Unbind();
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void RenderFrameToScreen::DrawOnePass(gl::PipelineShader* render_shader)
+{
+    DrawOnePass(m_screen_output->GetTextureID(), render_shader);
+}
+
+void RenderFrameToScreen::DrawOneFullPass(GLuint screen_output_id, gl::PipelineShader* render_shader, gl::PipelineShader* depth_shader_full)
+{
+    if (depth_shader == nullptr)
+    {
+        depth_shader = new gl::PipelineShader();
+        CreateVertexBuffers();
+    }
+
+    if (updateScreenRes)
+    {
+        depth_shader_full->Bind();
+        depth_shader_full->SetUniform("ScreenSize", glm::vec2((float)GetWidth(), (float)GetHeight()));
+        depth_shader_full->BindUniform("ScreenSize");
+        gl::PipelineShader::Unbind();
+
+        render_shader->Bind();
+        render_shader->SetUniform("ScreenSize", glm::vec2((float)GetWidth(), (float)GetHeight()));
+        render_shader->BindUniform("ScreenSize");
+        gl::PipelineShader::Unbind();
+
+        updateScreenRes = false;
+
+        printf("Updating resoultion\n");
+    }
+
+    depth_shader_full->Bind();
+
+    m_cb_vao->Bind();
+    m_cb_vbo->Bind();
+    m_cb_ibo->Bind();
+
+    m_cb_vao->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT);
+
+    gl::PipelineShader::Unbind();
+
+    render_shader->Bind();
+    m_cb_vao->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT);
+    gl::ExitOnGLError("Renderoutput: After Render frag.");
+
+    m_cb_ibo->Unbind();
+    m_cb_vbo->Unbind();
+    gl::ArrayObject::Unbind();
+
+    gl::ExitOnGLError("vis::RenderFrameToScreen: Could not get shader uniform locations");
+    gl::PipelineShader::Unbind();
+}
+
+void RenderFrameToScreen::DrawOneFullPass(gl::PipelineShader* render_shader, gl::PipelineShader* depth_shader_full)
+{
+    DrawOneFullPass(m_screen_output->GetTextureID(), render_shader, depth_shader_full);
+}
+
+void RenderFrameToScreen::DrawMultiPass(GLuint screen_output_id, gl::PipelineShader* render_shader, gl::PipelineShader* first_pass_shader, gl::PipelineShader* depth_shader_mult, int numSteps)
+{
+    if (depth_shader == nullptr)
+    {
+        depth_shader = new gl::PipelineShader();
+
+        CreateVertexBuffers();
+    }
+
+    GLuint colourDataId = colourData->GetTextureID();
+    GLuint dataDataId = dataData->GetTextureID();
+    glDepthFunc(GL_ALWAYS);
+    first_pass_shader->Bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, screen_output_id);
+
+    m_cb_vao->Bind();
+    m_cb_vbo->Bind();
+    m_cb_ibo->Bind();
+
+    glBindImageTexture(4, dataDataId, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+    glBindImageTexture(5, colourDataId, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA16F);
+
+    m_cb_vao->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT);
+
+    gl::PipelineShader::Unbind();
+    //numSteps = 1;
+
+    for (int i = 0; i < numSteps; i++)
+    {
+        glDepthFunc(GL_ALWAYS);
+        depth_shader_mult->Bind();
+        m_cb_vao->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT);
+
+        gl::PipelineShader::Unbind();
+
+        //printf("iter: %d\n", i);
+        glDepthFunc(GL_LESS);
+        render_shader->Bind();
+        m_cb_vao->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT);
+        gl::ExitOnGLError("Renderoutput: After Render frag.");
+
+        gl::ExitOnGLError("vis::RenderFrameToScreen: Could not get shader uniform locations");
+        gl::PipelineShader::Unbind();
+    }
+
+    m_cb_ibo->Unbind();
+    m_cb_vbo->Unbind();
+    gl::ArrayObject::Unbind();
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void RenderFrameToScreen::DrawMultiPass(gl::PipelineShader* render_shader, gl::PipelineShader* first_pass_shader, gl::PipelineShader* depth_shader_mult, int numSteps)
+{
+    DrawMultiPass(m_screen_output->GetTextureID(), render_shader, first_pass_shader, depth_shader_mult, numSteps);
+}
+//End of Jacob's
 
 void RenderFrameToScreen::SetMultiResolutionScreenMultiplier (glm::ivec2 mr)
 {
@@ -294,7 +498,7 @@ void RenderFrameToScreen::DrawMultiSampleHigherResolutionMode(GLuint ext_screen_
 
     m_cp_shader_multisample->Dispatch();
 
-    Draw(m_filtered_screen_output->GetTextureID());
+    //Draw(m_filtered_screen_output->GetTextureID());
   }
 }
 
@@ -410,7 +614,7 @@ void RenderFrameToScreen::DrawHigherResolutionWithDownScale (GLuint ext_screen_o
       m_cp_shader_digital_filter->Unbind();
     }
 
-    Draw(m_filtered_screen_output->GetTextureID());
+    //Draw(m_filtered_screen_output->GetTextureID());
   }
 }
 
@@ -528,7 +732,7 @@ void RenderFrameToScreen::DrawLowerResolutionWithUpScale (GLuint ext_screen_outp
 
     m_cp_shader_upscale->Dispatch();
     m_cp_shader_upscale->Unbind();
-    Draw(m_filtered_screen_output->GetTextureID());
+    //Draw(m_filtered_screen_output->GetTextureID());
   }
 }
 

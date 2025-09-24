@@ -1,0 +1,72 @@
+﻿#version 430
+
+layout (binding = 1) uniform sampler3D TexVolume; 
+layout (binding = 2) uniform sampler1D TexTransferFunc;
+layout (binding = 3) uniform sampler3D TexVolumeGradient;
+
+uniform vec3 VolumeGridResolution;
+uniform vec3 VolumeVoxelSize;
+uniform vec3 VolumeGridSize;
+
+uniform vec3 CameraEye;
+
+uniform mat4 u_CameraLookAt;
+uniform mat4 ProjectionMatrix;
+
+uniform float u_TanCameraFovY;
+uniform float u_CameraAspectRatio;
+
+uniform float StepSize;
+
+uniform vec3 VolumeScales;
+
+uniform int ApplyGradientPhongShading;
+
+uniform float BlinnPhongKa;
+uniform float BlinnPhongKd;
+uniform float BlinnPhongKs;
+uniform float BlinnPhongShininess;
+
+uniform vec3 BlinnPhongIspecular;
+
+uniform vec3 WorldEyePos;
+uniform vec3 LightSourcePosition;
+
+uniform int ApplyOcclusion;
+uniform int ApplyShadow;
+
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout (rgba16f, binding = 0) uniform image2D OutputFrag;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// From _structured_volume_data/ray_bbox_intersection.frag
+struct Ray { vec3 Origin; vec3 Dir; };
+bool RayAABBIntersection (vec3 vert_eye, vec3 vert_dir, vec3 vol_scaled_dim,
+                          out Ray r, out float rtnear, out float rtfar);
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+void main ()
+{
+  ivec2 storePos = ivec2(gl_GlobalInvocationID.xy);
+  
+  ivec2 size = imageSize(OutputFrag);
+  if (storePos.x < size.x && storePos.y < size.y)
+  {
+    // Get screen position [x, y] and consider centering the pixel by + 0.5
+    vec2 fpos = vec2(storePos) + 0.5;
+
+    // Transform fpos from [w, h] to [0, 1] to [-1, 1]
+    vec3 VerPos = (vec3(fpos.x / float(size.x), fpos.y / float(size.y), 0.0) * 2.0) - 1.0;
+
+    // Camera direction
+    vec3 camera_dir = normalize(vec3(VerPos.x * u_TanCameraFovY * u_CameraAspectRatio, VerPos.y * u_TanCameraFovY, -1.0) * mat3(u_CameraLookAt));
+
+    // Find Ray Intersection
+    Ray r; float tnear, tfar;
+    bool inbox = RayAABBIntersection(CameraEye, camera_dir, VolumeGridSize, r, tnear, tfar);
+    float D = abs(tfar - tnear);
+
+    vec4 dst = vec4(tnear, D, 0.0, inbox ? 0.0 : 1.0);
+    imageStore(OutputFrag, storePos, dst);
+  }
+}

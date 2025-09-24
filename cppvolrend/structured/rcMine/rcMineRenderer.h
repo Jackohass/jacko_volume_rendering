@@ -22,6 +22,9 @@
 #include <gl_utils/bufferobject.h>
 
 #include <gl_utils/computeshader.h>
+#include <gl_utils/pipelineshader.h>
+
+#include <vis_utils/filters/utils.hpp>
 
 #include "../../volrenderbase.h"
 
@@ -68,9 +71,30 @@ private:
     void DestroyRenderingPass();
     void RecreateRenderingPass();
 
+    void createFirstPass();
+    void createMultiRenderPass();
+
+    bool UpdateFirstpass(vis::Camera* camera);
+    bool UpdateMultiDraw(vis::Camera* camera);
+
     gl::Texture1D* m_glsl_transfer_function;
 
     gl::ComputeShader* cp_shader_rendering;
+
+    gl::PipelineShader* render_shader;
+
+
+    gl::PipelineShader* first_pass_shader;
+    gl::PipelineShader* render_shader_mutli;
+    gl::PipelineShader* depth_shader_mutli;
+    gl::PipelineShader* depth_shader_full;
+
+    void OneDraw();
+    void OneFullDraw();
+    void MultiDraw();
+
+    float maxLength;
+    int numSteps;
 
 
     bool m_apply_gradient_shading;

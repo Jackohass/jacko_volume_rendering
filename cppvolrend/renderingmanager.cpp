@@ -85,8 +85,10 @@ void RenderingManager::DestroyInstance ()
 void RenderingManager::InitGL()
 {
 #ifdef USING_FREEGLUT
-  glEnable(GL_TEXTURE_2D);
-  glEnable(GL_TEXTURE_3D);
+  //glEnable(GL_TEXTURE_2D);
+  gl::ExitOnGLError("Can't enable 2D");
+  //glEnable(GL_TEXTURE_3D);
+  gl::ExitOnGLError("Can't enable 3D");
 #else
 #ifdef USING_GLFW
   // Deprecated on Opengl 4x, does not work with glfw
@@ -94,6 +96,7 @@ void RenderingManager::InitGL()
   //glEnable(GL_TEXTURE_3D);
 #endif
 #endif
+  glEnable(GL_DEBUG_OUTPUT);
   glEnable(GL_DEPTH_TEST);
   gl::ExitOnGLError("RenderingManager: Could not enable depth test...");
 

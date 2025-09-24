@@ -105,10 +105,16 @@ ApplicationFreeGLUT::~ApplicationFreeGLUT ()
 bool ApplicationFreeGLUT::Init (int argc, char** argv)
 {
   glutInit(&argc, argv);
+  glutInitContextVersion(4, 6);
+  glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE);
+  //GLUT_COMPATIBILITY_PROFILE
+  glutInitContextFlags(GLUT_DEBUG);
+
 #ifdef __FREEGLUT_EXT_H__
   glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
 #endif
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL | GLUT_ALPHA);
+  
 
   glutInitWindowSize(RenderingManager::Instance()->GetScreenWidth(),
                      RenderingManager::Instance()->GetScreenHeight());
@@ -119,7 +125,12 @@ bool ApplicationFreeGLUT::Init (int argc, char** argv)
     printf("Glew didn't initialized!\n");
     exit(EXIT_FAILURE);
   }
+  int flags; glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+  if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) printf("DEBUG MODE ACTIVATED\n");
+
+
   printf("Running OpenGL %s\n\n", glGetString(GL_VERSION));
+  gl::ExitOnGLError("Can get string");
 
   // Setup GLUT display function
   glutDisplayFunc(ApplicationFreeGLUT::Display);
@@ -137,8 +148,10 @@ bool ApplicationFreeGLUT::Init (int argc, char** argv)
 
   glutCloseFunc(ApplicationFreeGLUT::s_CloseFunc);
   glutIdleFunc(ApplicationFreeGLUT::s_IdleFunc);
+  gl::ExitOnGLError("Can GLUT");
 
   RenderingManager::Instance()->f_swapbuffer = ApplicationFreeGLUT::glutSwapBuffer;
+  gl::ExitOnGLError("Can't swap buffers 2D?");
   
   // VSYNC
   if (wglGetSwapIntervalEXT() > 0)

@@ -30,6 +30,8 @@
 // Mine
 #include "structured/rcMine/rcMineRenderer.h"
 
+//#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #ifdef USING_FREEGLUT
@@ -53,6 +55,8 @@ int main (int argc, char **argv)
   if (!app.Init(argc, argv)) return 1;
 
   RenderingManager::Instance()->InitGL();
+
+  printf("%d %d\n", GL_INVALID_VALUE, GL_INVALID_OPERATION);
 
   // Adding the rendering modes
   //-----------------------------------------------------------------------------------------------------------------------------------------------------------------

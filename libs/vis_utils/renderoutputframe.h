@@ -1,6 +1,7 @@
 #ifndef VIS_UTILS_RENDER_OUTPUT_FRAME_H
 #define VIS_UTILS_RENDER_OUTPUT_FRAME_H
 
+#include <gl_utils/texture1d.h>
 #include <gl_utils/texture2d.h>
 #include <gl_utils/pipelineshader.h>
 #include <gl_utils/computeshader.h>
@@ -35,10 +36,16 @@ public:
   void ClearTexture ();
   void ClearTextureImage ();
   void BindImageTexture (bool multisample = false);
-  void Draw ();
-
+  
+  void Draw();
   void Draw (gl::Texture2D* screen_output);
   void Draw (GLuint screen_output_id);
+  //Jacob's
+  void ClearMultiTexture();
+  void DrawOnePass(gl::PipelineShader* m_ps_shader);
+  void DrawOneFullPass(gl::PipelineShader* render_shader, gl::PipelineShader* depth_shader_full);
+  void DrawMultiPass(gl::PipelineShader* m_ps_shader, gl::PipelineShader* first_pass_shader, gl::PipelineShader* depth_shader_mult, int numSteps);
+  //End of Jacob's
 
   void SetMultiResolutionScreenMultiplier (glm::ivec2 mr);
   // Version 1
@@ -71,6 +78,20 @@ private:
 
   std::string m_shader_folder;
   gl::PipelineShader* m_ps_shader;
+
+  //Jacob's
+  gl::PipelineShader* depth_shader = nullptr;
+
+  void createSecondPass();
+  void DrawOnePass(GLuint screen_output_id, gl::PipelineShader* m_ps_shader);
+  void DrawMultiPass(GLuint screen_output_id, gl::PipelineShader* m_ps_shader, gl::PipelineShader* first_pass_shader, gl::PipelineShader* depth_shader_mult, int numSteps);
+  void DrawOneFullPass(GLuint screen_output_id, gl::PipelineShader* render_shader, gl::PipelineShader* depth_shader_full);
+
+  gl::Texture2D* colourData;
+  gl::Texture2D* dataData;
+
+  bool updateScreenRes;
+  //End of Jacob's
 
   gl::ComputeShader* m_cp_shader_multisample;
   gl::ComputeShader* m_cp_shader_downscale;
