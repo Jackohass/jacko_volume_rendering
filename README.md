@@ -2,6 +2,8 @@
 
 A volume rendering application with different techniques, trying to be as similar as possible to the results from each paper. Any contribution is welcome!
 
+This specific branch implements Early Depth Testing, both a single pass and a multi-pass version. Inspired by the paper "Acceleration techniques for GPU-based volume rendering" From "Computer Graphics and Visualization Group" at Technical University Munich 2003.
+
 ### Project settings
 
 ---
